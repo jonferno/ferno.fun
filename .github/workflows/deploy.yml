@@ -26,18 +26,21 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      # Stage only the static site. The dev server and the Puppeteer test
+      # harness stay in the repo but never reach the live site.
+      - name: Stage site
+        run: |
+          mkdir -p _site/css _site/js _site/assets
+          cp index.html _site/
+          cp css/style.css _site/css/
+          cp js/fire.js js/main.js _site/js/
+          cp assets/favicon.svg _site/assets/
+          cp manifest.webmanifest robots.txt _headers _site/
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
-          # the dev server and test harness are not part of the published site
-          exclude: |
-            server.mjs
-            tools/
-            captures/
-            node_modules/
-            package.json
-            package-lock.json
+          path: _site
 
       - name: Deploy
         id: deployment
