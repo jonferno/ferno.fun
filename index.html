@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>FERNO.fun — personal playground</title>
+<meta name="description" content="ferno.fun — a personal playground of shenanigans: game modding, music generation, and other mischief." />
+<meta name="theme-color" content="#05070f" />
+<meta property="og:title" content="FERNO.fun" />
+<meta property="og:description" content="A personal playground of shenanigans." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://ferno.fun/" />
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ── background layers ─────────────────────────────────────────── -->
+<canvas id="fire" aria-hidden="true"></canvas>
+<canvas id="embers" aria-hidden="true"></canvas>
+<div class="fx scanlines" aria-hidden="true"></div>
+<div class="fx vignette" aria-hidden="true"></div>
+<div class="fx grain" aria-hidden="true"></div>
+<div class="fx bluewash" aria-hidden="true"></div>
+
+<!-- ── landing ───────────────────────────────────────────────────── -->
+<main id="landing" class="screen screen--landing is-active">
+  <div class="landing__inner">
+    <div class="crest" id="crest" aria-hidden="true"></div>
+
+    <h1 class="wordmark" data-text="FERNO">
+      <span>F</span><span>E</span><span>R</span><span>N</span><span>O</span>
+      <span class="wordmark__tld">.fun</span>
+    </h1>
+
+    <p class="tagline">
+      <span class="tagline__bracket">[</span> a personal playground of shenanigans <span class="tagline__bracket">]</span>
+    </p>
+
+    <button id="enter" class="btn btn--enter" type="button">
+      <span class="btn__glyph" aria-hidden="true">▶</span>
+      <span class="btn__label">ENTER</span>
+    </button>
+
+    <p class="hint">
+      <span class="hint__key">MOVE</span> your cursor — the fire follows
+    </p>
+  </div>
+
+  <div class="landing__foot">
+    <span class="stat"><i class="pip pip--live"></i>FERNO.FUN</span>
+    <span class="stat" id="clock">--:--:--</span>
+    <span class="stat">v0.1.0</span>
+  </div>
+</main>
+
+<!-- ── hub ───────────────────────────────────────────────────────── -->
+<main id="hub" class="screen screen--hub" aria-hidden="true">
+  <header class="hub__bar">
+    <button id="back" class="btn btn--ghost" type="button">
+      <span class="btn__glyph" aria-hidden="true">◀</span>
+      <span class="btn__label">BACK</span>
+    </button>
+    <h2 class="hub__title">SELECT&nbsp;DESTINATION</h2>
+    <div class="hub__status"><i class="pip pip--live"></i>ONLINE</div>
+  </header>
+
+  <div class="cards" id="cards">
+    <a class="card card--x" href="https://x.com/Jonferno" target="_blank" rel="noopener noreferrer" data-open="x.com/Jonferno">
+      <span class="card__icon" data-icon="x"></span>
+      <span class="card__body">
+        <span class="card__name">X / TWITTER</span>
+        <span class="card__desc">Short-form thoughts, loud opinions, and the occasional thread.</span>
+        <span class="card__meta">@Jonferno</span>
+      </span>
+      <span class="card__arrow" aria-hidden="true">→</span>
+    </a>
+
+    <button class="card card--discord" type="button" data-copy="Jonferno" data-open="discord · Jonferno">
+      <span class="card__icon" data-icon="discord"></span>
+      <span class="card__body">
+        <span class="card__name">DISCORD</span>
+        <span class="card__desc">Where the shenanigans get coordinated. Say hi.</span>
+        <span class="card__meta">Jonferno</span>
+      </span>
+      <span class="card__arrow" aria-hidden="true">⧉</span>
+    </button>
+
+    <a class="card card--github" href="https://github.com/Jonferno" target="_blank" rel="noopener noreferrer" data-open="github.com/Jonferno">
+      <span class="card__icon" data-icon="github"></span>
+      <span class="card__body">
+        <span class="card__name">GITHUB</span>
+        <span class="card__desc">Code, tools, and the receipts for whatever is currently on fire.</span>
+        <span class="card__meta">Jonferno</span>
+      </span>
+      <span class="card__arrow" aria-hidden="true">→</span>
+    </a>
+
+    <div class="card card--planned" data-planned="Game Modding">
+      <span class="card__icon" data-icon="mod"></span>
+      <span class="card__body">
+        <span class="card__name">GAME MODDING</span>
+        <span class="card__desc">Tools, patches, and questionable decisions applied to other people's games.</span>
+        <span class="card__meta">IN THE WORKS</span>
+      </span>
+      <span class="card__badge">PLANNED</span>
+    </div>
+
+    <div class="card card--planned" data-planned="Music Generation">
+      <span class="card__icon" data-icon="music"></span>
+      <span class="card__body">
+        <span class="card__name">MUSIC GENERATION</span>
+        <span class="card__desc">Procedural sound, generated tracks, and experiments in controlled chaos.</span>
+        <span class="card__meta">IN THE WORKS</span>
+      </span>
+      <span class="card__badge">PLANNED</span>
+    </div>
+  </div>
+
+  <footer class="hub__foot">
+    <div class="ticker" aria-hidden="true"><span id="ticker"></span></div>
+    <div class="hub__legal">ferno.fun · built by Jonferno · everything here is probably a work in progress</div>
+  </footer>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="js/fire.js" defer></script>
+<script src="js/main.js" defer></script>
+</body>
+</html>
