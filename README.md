@@ -2,6 +2,9 @@
 
 A personal playground of shenanigans. Pixel-art inferno theme, live GPU fire that reacts to your cursor.
 
+**Live:** https://jonferno.github.io/ferno.fun/
+**Repo:** https://github.com/jonferno/ferno.fun
+
 ## What's here
 
 ```
@@ -64,13 +67,18 @@ cell-based fire simulation that still responds to the pointer.
 
 ## Deploying
 
-**Cloudflare Pages** — build command: none. Output directory: `.`
-
 **GitHub Pages** — `.github/workflows/deploy.yml` publishes on every push to `main`.
-Set Settings → Pages → Source to "GitHub Actions".
+The workflow stages only the site files, so the dev server and test harness stay
+in the repo but never reach the live site. Set Settings → Pages → Source to
+"GitHub Actions" if it is not already on.
+
+**Cloudflare Pages** — build command: none. Output directory: `.` (or a directory
+containing only the site files). `_headers` is picked up automatically.
 
 For `ferno.fun` itself, point the domain's DNS at whichever host you use and add the
-custom domain in that host's dashboard.
+custom domain in that host's dashboard. On Cloudflare Pages, add `ferno.fun` under
+Custom Domains; on GitHub Pages, add a `CNAME` file containing `ferno.fun` and
+enable "Enforce HTTPS".
 
 ## Links
 
