@@ -636,8 +636,13 @@ void main() {
 
   /* ── input ────────────────────────────────────────────────────── */
 
-  let pointer = { x: 0.5, y: 0.5, px: 0.5, py: 0.5, active: false, moved: false };
+  // The fire is click-driven only. Cursor movement deliberately does NOT
+  // touch the simulation: tracking the pointer made the flames appear to
+  // follow the mouse and occasionally glitched when the pointer left the
+  // window mid-drag. A click detonates a burst of heat at that point.
   let pointerDown = false;
+  let lastClick = null;
+  let pointerSplats = 0;   // counts splats caused by the pointer, for testing
 
   function toSim(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
@@ -646,25 +651,18 @@ void main() {
     return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
   }
 
-  function onMove(e) {
-    const p = toSim(e.clientX, e.clientY);
-    pointer.px = pointer.x;
-    pointer.py = pointer.y;
-    pointer.x = p.x;
-    pointer.y = p.y;
-    pointer.active = true;
-    pointer.moved = true;
-  }
-
-  window.addEventListener("pointermove", onMove, { passive: true });
   window.addEventListener("pointerdown", (e) => {
     pointerDown = true;
-    onMove(e);
     const p = toSim(e.clientX, e.clientY);
-    splat(p.x, p.y, 0, RISE * 3, 0.9, 0.45, 0.12);
+    lastClick = p;
+    // a hard upward blast plus a wide heat burst: this is the "explode" feel
+    splat(p.x, p.y, 0, RISE * 4, 1.1, 0.5, 0.12);
+    splat(p.x, p.y, 0, RISE * 2, 0.85, 0.38, 0.08);
+    splat(p.x, p.y, 0, RISE * 1, 0.6, 0.26, 0.05);
+    pointerSplats += 3;
   }, { passive: true });
   window.addEventListener("pointerup", () => { pointerDown = false; }, { passive: true });
-  window.addEventListener("pointerleave", () => { pointer.active = false; }, { passive: true });
+  window.addEventListener("pointercancel", () => { pointerDown = false; }, { passive: true });
 
   /* ── loop ─────────────────────────────────────────────────────── */
 
@@ -695,20 +693,9 @@ void main() {
       splat(ridgeX, 0.004, 0, RISE * 0.7, 0.4, 0.14, 0.03);
     }
 
-    // mouse stirs the fire and drops embers where it moves
-    if (pointer.active && pointer.moved) {
-      const dx = (pointer.x - pointer.px) * 900;
-      const dy = (pointer.y - pointer.py) * 900;
-      const speed = Math.min(1, Math.hypot(dx, dy) / 500);
-      if (speed > 0.02) {
-        const heat = 0.3 + speed * 0.7;
-        splat(pointer.x, pointer.y, dx, dy, heat, heat * 0.36, heat * 0.06);
-      }
-      pointer.moved = false;
-    }
-
-    if (pointerDown) {
-      splat(pointer.x, pointer.y, 0, RISE * 1.6, 0.6, 0.26, 0.05);
+    // holding the pointer down keeps feeding the blast
+    if (pointerDown && lastClick) {
+      splat(lastClick.x, lastClick.y, 0, RISE * 1.6, 0.6, 0.26, 0.05);
     }
 
     step(dt);
@@ -737,9 +724,32 @@ void main() {
       }).then((r) => r.json());
     };
 
+    // Total dye energy in the simulation. Unlike a canvas readback this is
+    // deterministic and not affected by the ambient ember bed, so it can be
+    // used to prove that pointer movement does not drive the simulation.
+    window.__dyeEnergy = function () {
+      const px = new Uint8Array(renderW * renderH * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(0, 0, renderW, renderH, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      let s = 0;
+      for (let i = 0; i < px.length; i += 4) s += px[i] + px[i + 1] + px[i + 2];
+      return s;
+    };
+
+    // how many splats the pointer has caused
+    window.__pointerSplats = function () {
+      return pointerSplats;
+    };
+
     setTimeout(() => window.__captureFire("landing"), 2500);
     setTimeout(() => window.__captureFire("landing-late"), 7000);
   }
+
+  // The pointer-splat counter is always exposed: it is the only deterministic
+  // way to prove that cursor movement does not drive the simulation.
+  window.__pointerSplats = function () {
+    return pointerSplats;
+  };
 
   /* ── fallback: CPU pixel fire ─────────────────────────────────── */
 

@@ -31,9 +31,9 @@ jobs:
       - name: Stage site
         run: |
           mkdir -p _site/css _site/js _site/assets
-          cp index.html _site/
+          cp index.html music.html _site/
           cp css/style.css _site/css/
-          cp js/fire.js js/main.js _site/js/
+          cp js/fire.js js/main.js js/music.js js/tracks.js _site/js/
           cp assets/favicon.svg _site/assets/
           cp manifest.webmanifest robots.txt _headers _site/
 

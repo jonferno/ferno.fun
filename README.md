@@ -9,15 +9,40 @@ A personal playground of shenanigans. Pixel-art inferno theme, live GPU fire tha
 
 ```
 index.html              landing + hub markup
+music.html              the Suno track player page
 css/style.css           the whole visual system
 js/fire.js              WebGL2 fluid fire solver (the main event)
 js/main.js              screen routing, embers, clock, toasts
+js/music.js             the track list + shared audio player
+js/tracks.js            the Suno catalogue (titles, durations, audio, covers)
 assets/favicon.svg      pixel flame mark
 server.mjs              local dev server (+ screenshot capture endpoint)
-tools/verify.mjs        24-check interaction test suite
+tools/verify.mjs        43-check interaction test suite
 tools/fire-diag.mjs     fire coverage diagnostics across viewports
 tools/scale-sweep.mjs   flame-height tuning sweep
+tools/extract-suno.mjs  pulls the track catalogue from the Suno profile feed
+tools/explode-capture.mjs  captures the click explosion frame by frame
 ```
+
+## Pages
+
+- **Landing** — the FERNO.fun wordmark and an ENTER button.
+- **Hub** — X, Discord, GitHub, YouTube, plus Game Modding (planned) and
+  Music Generation.
+- **Music** — every Suno generation with a play button, cover art, genre,
+  duration and a link to the track on Suno. Clicking a track plays it inline;
+  playback continues to the next track when one ends.
+
+## The music catalogue
+
+`js/tracks.js` is generated from the public Suno profile feed for
+`@jonferno` (10 tracks). `tools/extract-suno.mjs` re-pulls it.
+
+One wrinkle worth knowing: the feed's `media_urls` point at an **encrypted**
+`.m4a` (`content_type: "m4a-opus"`) that browsers refuse to decode — Chrome
+reports `MEDIA_ERR_SRC_NOT_SUPPORTED`. Each song's `video_url` is a plain
+MP4 with an AAC audio track, so that is what the player streams. The MP4 is
+also what Suno itself uses for the shareable preview.
 
 ## Run it
 
@@ -47,11 +72,14 @@ of `0.09` was picked by sweeping values across desktop, laptop, tablet and mobil
 with `tools/scale-sweep.mjs` and taking the value that held the fire to the bottom quarter
 to third everywhere.
 
-Mouse movement injects velocity and heat into the simulation, so dragging across the screen
-fans the flames. Clicking drops a burst of embers.
+Mouse movement does **not** touch the simulation. The fire is click-driven:
+a click detonates a burst of heat and upward velocity at that point, which
+rises and dissipates over the next second or so. Tracking the pointer made
+the flames appear to follow the mouse and glitched when the pointer left the
+window mid-drag.
 
 If WebGL2 or `EXT_color_buffer_float` is unavailable, the script falls back to a CPU
-cell-based fire simulation that still responds to the pointer.
+cell-based fire simulation that still responds to clicks.
 
 ## URL parameters
 
@@ -85,3 +113,5 @@ enable "Enforce HTTPS".
 - X — https://x.com/Jonferno
 - Discord — `Jonferno`
 - GitHub — https://github.com/Jonferno
+- YouTube — https://www.youtube.com/@Jonferno_0
+- Suno — https://suno.com/@jonferno

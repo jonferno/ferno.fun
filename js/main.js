@@ -141,18 +141,9 @@
   }
 
   function spawnEmber() {
-    const fromPointer = Math.random() < 0.35 && pointerState.inside;
-    let x, y;
-    if (fromPointer) {
-      x = pointerState.x + (Math.random() - 0.5) * 40;
-      y = pointerState.y + (Math.random() - 0.5) * 40;
-    } else {
-      x = Math.random() * window.innerWidth;
-      y = window.innerHeight + 10;
-    }
     embers.push({
-      x,
-      y,
+      x: Math.random() * window.innerWidth,
+      y: window.innerHeight + 10,
       vx: (Math.random() - 0.5) * 0.35,
       vy: -(0.5 + Math.random() * 1.5),
       life: 1,
@@ -161,16 +152,6 @@
       warm: Math.random() < 0.7
     });
   }
-
-  const pointerState = { x: 0, y: 0, inside: false };
-
-  window.addEventListener("pointermove", (e) => {
-    pointerState.x = e.clientX;
-    pointerState.y = e.clientY;
-    pointerState.inside = true;
-  }, { passive: true });
-
-  window.addEventListener("pointerleave", () => { pointerState.inside = false; });
 
   function drawEmbers() {
     ectx.clearRect(0, 0, window.innerWidth, window.innerHeight);

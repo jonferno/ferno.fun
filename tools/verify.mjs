@@ -32,7 +32,12 @@ page.on("console", (m) => {
   if (m.type() === "error") consoleErrors.push(m.text());
 });
 page.on("pageerror", (e) => consoleErrors.push("pageerror: " + e.message));
-page.on("requestfailed", (r) => failedRequests.push(`${r.url()} :: ${r.failure()?.errorText}`));
+page.on("requestfailed", (r) => {
+  const err = r.failure()?.errorText || "";
+  // the browser aborts superseded media fetches routinely; not a real failure
+  if (err === "net::ERR_ABORTED") return;
+  failedRequests.push(`${r.url()} :: ${err}`);
+});
 page.on("response", (r) => {
   if (r.status() >= 400) failedRequests.push(`${r.status()} ${r.url()}`);
 });
@@ -89,34 +94,26 @@ const fireStats = await page.evaluate(async () => {
 check("fire canvas has warm pixels", fireStats.warmPct > 0.5, JSON.stringify(fireStats));
 check("fire canvas has blue void pixels", fireStats.bluePct > 5, JSON.stringify(fireStats));
 
-/* ── 3. mouse interaction stirs the fire ────────────────────────── */
-const before = await page.evaluate(() => {
-  const c = document.getElementById("fire");
-  const gl = c.getContext("webgl2");
-  const px = new Uint8Array(c.width * c.height * 4);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.readPixels(0, 0, c.width, c.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
-  let s = 0;
-  for (let i = 0; i < px.length; i += 4) s += px[i] + px[i + 1] + px[i + 2];
-  return s;
-});
+/* ── 3. the fire is click-driven only ───────────────────────────── */
+// The sim counts splats caused by the pointer. Moving the cursor must add
+// zero; clicking must add several.
+const splatCount = () => page.evaluate(() => window.__pointerSplats());
+
+const beforeMove = await splatCount();
 await page.mouse.move(200, 700);
 for (let i = 0; i < 24; i++) {
   await page.mouse.move(200 + i * 45, 700 - i * 12);
   await new Promise((r) => setTimeout(r, 22));
 }
 await new Promise((r) => setTimeout(r, 400));
-const after = await page.evaluate(() => {
-  const c = document.getElementById("fire");
-  const gl = c.getContext("webgl2");
-  const px = new Uint8Array(c.width * c.height * 4);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.readPixels(0, 0, c.width, c.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
-  let s = 0;
-  for (let i = 0; i < px.length; i += 4) s += px[i] + px[i + 1] + px[i + 2];
-  return s;
-});
-check("mouse movement changes the fire", Math.abs(after - before) > 1000, `delta=${after - before}`);
+const afterMove = await splatCount();
+check("cursor movement does not drive the fire", afterMove === beforeMove, `splats ${beforeMove} -> ${afterMove}`);
+
+const beforeClick = await splatCount();
+await page.mouse.click(720, 820);
+await new Promise((r) => setTimeout(r, 250));
+const afterClick = await splatCount();
+check("clicking detonates the fire", afterClick > beforeClick, `splats ${beforeClick} -> ${afterClick}`);
 
 /* ── 4. ENTER -> hub ────────────────────────────────────────────── */
 await page.click("#enter");
@@ -138,7 +135,7 @@ const hub = await page.evaluate(() => {
 });
 check("hub becomes active", hub.hubActive);
 check("landing hides", hub.landingHidden);
-check("all 5 cards visible", hub.cards.length === 5 && hub.cards.every((c) => c.visible), JSON.stringify(hub.cards.map((c) => c.name)));
+check("all 6 cards visible", hub.cards.length === 6 && hub.cards.every((c) => c.visible), JSON.stringify(hub.cards.map((c) => c.name)));
 check(
   "no card overflows the viewport",
   hub.cards.every((c) => c.x >= 0 && c.right <= hub.innerW + 1),
@@ -162,10 +159,16 @@ const links = await page.evaluate(() =>
 const xLink = links.find((l) => l.name === "X / TWITTER");
 const ghLink = links.find((l) => l.name === "GITHUB");
 const dcCard = links.find((l) => l.name === "DISCORD");
+const ytLink = links.find((l) => l.name === "YOUTUBE");
+const musicCard = links.find((l) => l.name === "MUSIC GENERATION");
 check("X link -> x.com/Jonferno", xLink?.href === "https://x.com/Jonferno", xLink?.href);
 check("X link opens safely", xLink?.target === "_blank" && (xLink?.rel || "").includes("noopener"), `${xLink?.target} ${xLink?.rel}`);
 check("GitHub link -> github.com/Jonferno", ghLink?.href === "https://github.com/Jonferno", ghLink?.href);
 check("Discord card copies handle Jonferno", dcCard?.copy === "Jonferno", dcCard?.copy);
+check("YouTube link -> @Jonferno_0", ytLink?.href === "https://www.youtube.com/@Jonferno_0", ytLink?.href);
+check("YouTube link opens safely", ytLink?.target === "_blank" && (ytLink?.rel || "").includes("noopener"), `${ytLink?.target} ${ytLink?.rel}`);
+check("Music card -> music.html", musicCard?.href === "music.html", musicCard?.href);
+check("Game Modding still marked planned", !!links.find((l) => l.name === "GAME MODDING"));
 
 /* ── 6. Discord copy shows a toast ──────────────────────────────── */
 await page.click(".card--discord");
@@ -216,6 +219,70 @@ await page.screenshot({ path: path.join(OUT, "v-mobile-landing.png") });
 /* ── 10. console cleanliness ────────────────────────────────────── */
 check("no console errors", consoleErrors.length === 0, consoleErrors.join(" | "));
 check("no failed requests", failedRequests.length === 0, failedRequests.join(" | "));
+
+/* ── 11. music page ─────────────────────────────────────────────── */
+await page.goto(`${BASE}/music.html?static=1`, { waitUntil: "networkidle0" });
+await new Promise((r) => setTimeout(r, 1500));
+
+const music = await page.evaluate(() => {
+  const rows = [...document.querySelectorAll(".track")];
+  return {
+    count: rows.length,
+    titles: rows.map((r) => r.querySelector(".track__title")?.textContent),
+    times: rows.map((r) => r.querySelector(".track__time")?.textContent),
+    hasAudio: !!document.querySelector("audio"),
+    artCount: rows.filter((r) => (r.querySelector(".track__art")?.style.backgroundImage || "").includes("suno.ai")).length,
+    sunoLinks: rows.filter((r) => (r.querySelector(".track__suno")?.href || "").includes("suno.com/song/")).length,
+    docScrollW: document.documentElement.scrollWidth,
+    innerW: window.innerWidth
+  };
+});
+check("music page renders 10 tracks", music.count === 10, `count=${music.count}`);
+check("every track has cover art", music.artCount === 10, `${music.artCount}/10`);
+check("every track links to its Suno page", music.sunoLinks === 10, `${music.sunoLinks}/10`);
+check("music page has an audio element", music.hasAudio);
+check("music page no horizontal overflow", music.docScrollW <= music.innerW + 1, `${music.docScrollW} vs ${music.innerW}`);
+
+// clicking a track should start playback and mark it active
+await page.click(".track:nth-child(3) .track__play");
+await new Promise((r) => setTimeout(r, 3000));
+const playState = await page.evaluate(() => {
+  const a = document.querySelector("audio");
+  const active = document.querySelector(".track.is-playing");
+  return {
+    paused: a.paused,
+    currentTime: a.currentTime,
+    readyState: a.readyState,
+    duration: a.duration,
+    error: a.error ? a.error.code : null,
+    src: a.currentSrc || a.src,
+    activeTitle: active?.querySelector(".track__title")?.textContent || null,
+    npTitle: document.querySelector("#np-title")?.textContent,
+    progress: document.querySelector("#np-progress")?.style.width
+  };
+});
+check("clicking a track starts playback", !playState.paused && playState.currentTime > 0, JSON.stringify(playState));
+check("playing track is marked active", !!playState.activeTitle, playState.activeTitle);
+check("now-playing panel shows the track", playState.npTitle === playState.activeTitle, `${playState.npTitle} vs ${playState.activeTitle}`);
+check("audio src points at the Suno CDN", /cdn1\.suno\.ai\/.*\.mp4/.test(playState.src), playState.src);
+
+await page.screenshot({ path: path.join(OUT, "v-music.png") });
+
+// mobile music page
+await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+await page.goto(`${BASE}/music.html?static=1`, { waitUntil: "networkidle0" });
+await new Promise((r) => setTimeout(r, 1200));
+const musicMobile = await page.evaluate(() => ({
+  docScrollW: document.documentElement.scrollWidth,
+  innerW: window.innerWidth,
+  rowRight: Math.max(...[...document.querySelectorAll(".track")].map((r) => Math.round(r.getBoundingClientRect().right)))
+}));
+check("music mobile: no horizontal overflow", musicMobile.docScrollW <= musicMobile.innerW + 1, `${musicMobile.docScrollW} vs ${musicMobile.innerW}`);
+check("music mobile: rows fit", musicMobile.rowRight <= musicMobile.innerW + 1, `maxRight=${musicMobile.rowRight}`);
+await page.screenshot({ path: path.join(OUT, "v-music-mobile.png") });
+
+check("no console errors after music page", consoleErrors.length === 0, consoleErrors.join(" | "));
+check("no failed requests after music page", failedRequests.length === 0, failedRequests.join(" | "));
 
 await browser.close();
 
