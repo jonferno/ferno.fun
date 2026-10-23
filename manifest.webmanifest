@@ -2,13 +2,14 @@
   "name": "ferno.fun",
   "short_name": "ferno",
   "description": "A personal playground of shenanigans.",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#03050c",
   "theme_color": "#05070f",
   "icons": [
     {
-      "src": "/assets/favicon.svg",
+      "src": "assets/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

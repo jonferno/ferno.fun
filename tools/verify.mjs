@@ -27,10 +27,15 @@ const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
 
 const consoleErrors = [];
+const failedRequests = [];
 page.on("console", (m) => {
   if (m.type() === "error") consoleErrors.push(m.text());
 });
 page.on("pageerror", (e) => consoleErrors.push("pageerror: " + e.message));
+page.on("requestfailed", (r) => failedRequests.push(`${r.url()} :: ${r.failure()?.errorText}`));
+page.on("response", (r) => {
+  if (r.status() >= 400) failedRequests.push(`${r.status()} ${r.url()}`);
+});
 
 await page.goto(`${BASE}/?static=1&pdb=1`, { waitUntil: "networkidle0" });
 await new Promise((r) => setTimeout(r, 1500));
@@ -210,6 +215,7 @@ await page.screenshot({ path: path.join(OUT, "v-mobile-landing.png") });
 
 /* ── 10. console cleanliness ────────────────────────────────────── */
 check("no console errors", consoleErrors.length === 0, consoleErrors.join(" | "));
+check("no failed requests", failedRequests.length === 0, failedRequests.join(" | "));
 
 await browser.close();
 
