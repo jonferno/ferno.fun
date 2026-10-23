@@ -637,12 +637,17 @@ void main() {
   /* ── input ────────────────────────────────────────────────────── */
 
   // The fire is click-driven only. Cursor movement deliberately does NOT
-  // touch the simulation: tracking the pointer made the flames appear to
-  // follow the mouse and occasionally glitched when the pointer left the
-  // window mid-drag. A click detonates a burst of heat at that point.
+  // touch the simulation unless the button is held: tracking the pointer
+  // made the flames appear to follow the mouse and occasionally glitched
+  // when the pointer left the window mid-drag.
   let pointerDown = false;
-  let lastClick = null;
   let pointerSplats = 0;   // counts splats caused by the pointer, for testing
+
+  // Where the pointer is, and how far it has travelled since the last frame.
+  // The drag delta is accumulated in the move handler rather than sampled
+  // from the previous position: pointermove fires more often than the render
+  // loop, so sampling would miss most of the movement.
+  const pointer = { x: 0.5, y: 0.5, has: false, dx: 0, dy: 0 };
 
   function toSim(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
@@ -651,18 +656,46 @@ void main() {
     return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
   }
 
+  window.addEventListener("pointermove", (e) => {
+    const p = toSim(e.clientX, e.clientY);
+    if (pointer.has) {
+      pointer.dx += p.x - pointer.x;
+      pointer.dy += p.y - pointer.y;
+    }
+    pointer.x = p.x;
+    pointer.y = p.y;
+    pointer.has = true;
+  }, { passive: true });
+
   window.addEventListener("pointerdown", (e) => {
     pointerDown = true;
     const p = toSim(e.clientX, e.clientY);
-    lastClick = p;
+    pointer.x = p.x;
+    pointer.y = p.y;
+    pointer.dx = 0;
+    pointer.dy = 0;
+    pointer.has = true;
+    // NOTE: deliberately no setPointerCapture here. The fire canvas covers
+    // the whole viewport, so capturing the pointer would route every later
+    // click to the canvas and swallow clicks on the page UI underneath.
+    // Instead the drag is tracked from window-level pointermove events,
+    // which keep firing even when the cursor leaves the canvas.
     // a hard upward blast plus a wide heat burst: this is the "explode" feel
     splat(p.x, p.y, 0, RISE * 4, 1.1, 0.5, 0.12);
     splat(p.x, p.y, 0, RISE * 2, 0.85, 0.38, 0.08);
     splat(p.x, p.y, 0, RISE * 1, 0.6, 0.26, 0.05);
     pointerSplats += 3;
   }, { passive: true });
-  window.addEventListener("pointerup", () => { pointerDown = false; }, { passive: true });
-  window.addEventListener("pointercancel", () => { pointerDown = false; }, { passive: true });
+
+  function releasePointer() {
+    pointerDown = false;
+    pointer.has = false;
+    pointer.dx = 0;
+    pointer.dy = 0;
+  }
+  window.addEventListener("pointerup", releasePointer, { passive: true });
+  window.addEventListener("pointercancel", releasePointer, { passive: true });
+  window.addEventListener("blur", releasePointer);
 
   /* ── loop ─────────────────────────────────────────────────────── */
 
@@ -693,10 +726,21 @@ void main() {
       splat(ridgeX, 0.004, 0, RISE * 0.7, 0.4, 0.14, 0.03);
     }
 
-    // holding the pointer down keeps feeding the blast
-    if (pointerDown && lastClick) {
-      splat(lastClick.x, lastClick.y, 0, RISE * 1.6, 0.6, 0.26, 0.05);
+    // While the pointer is held, the flame follows it: heat is injected at
+    // the current position and the drag velocity pushes the flow sideways,
+    // so dragging sweeps the fire around and leaves a trail.
+    if (pointerDown && pointer.has) {
+      const dx = pointer.dx * 900;
+      const dy = pointer.dy * 900;
+      const speed = Math.min(1, Math.hypot(dx, dy) / 500);
+      const heat = 0.45 + speed * 0.55;
+      splat(pointer.x, pointer.y, dx, dy, heat, heat * 0.36, heat * 0.06);
+      // a steady updraft so the flame keeps climbing while held
+      splat(pointer.x, pointer.y, 0, RISE * 1.4, 0.5, 0.22, 0.04);
+      pointerSplats += 2;
     }
+    pointer.dx = 0;
+    pointer.dy = 0;
 
     step(dt);
     render(time);
@@ -749,6 +793,12 @@ void main() {
   // way to prove that cursor movement does not drive the simulation.
   window.__pointerSplats = function () {
     return pointerSplats;
+  };
+
+  // Force a fresh render of the current simulation state. Used by the
+  // capture tools so a snapshot reflects the instant it was taken.
+  window.__renderNow = function () {
+    render(time);
   };
 
   /* ── fallback: CPU pixel fire ─────────────────────────────────── */

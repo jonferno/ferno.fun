@@ -115,6 +115,27 @@ await new Promise((r) => setTimeout(r, 250));
 const afterClick = await splatCount();
 check("clicking detonates the fire", afterClick > beforeClick, `splats ${beforeClick} -> ${afterClick}`);
 
+// holding the button and dragging must keep feeding the simulation and
+// move the flame with the pointer
+const beforeDrag = await splatCount();
+await page.mouse.move(400, 820);
+await page.mouse.down();
+for (let i = 0; i < 20; i++) {
+  await page.mouse.move(400 + i * 45, 820 - i * 10);
+  await new Promise((r) => setTimeout(r, 25));
+}
+const duringDrag = await splatCount();
+await page.mouse.up();
+check("holding and dragging keeps the fire alive", duringDrag > beforeDrag + 20, `splats ${beforeDrag} -> ${duringDrag}`);
+
+// after release the pointer must stop driving the simulation
+await new Promise((r) => setTimeout(r, 200));
+const afterRelease = await splatCount();
+await page.mouse.move(900, 300);
+await new Promise((r) => setTimeout(r, 300));
+const afterReleaseMove = await splatCount();
+check("releasing stops the pointer driving the fire", afterReleaseMove === afterRelease, `splats ${afterRelease} -> ${afterReleaseMove}`);
+
 /* ── 4. ENTER -> hub ────────────────────────────────────────────── */
 await page.click("#enter");
 await new Promise((r) => setTimeout(r, 900));

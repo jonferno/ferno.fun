@@ -17,11 +17,12 @@ js/music.js             the track list + shared audio player
 js/tracks.js            the Suno catalogue (titles, durations, audio, covers)
 assets/favicon.svg      pixel flame mark
 server.mjs              local dev server (+ screenshot capture endpoint)
-tools/verify.mjs        43-check interaction test suite
+tools/verify.mjs        45-check interaction test suite
 tools/fire-diag.mjs     fire coverage diagnostics across viewports
 tools/scale-sweep.mjs   flame-height tuning sweep
 tools/extract-suno.mjs  pulls the track catalogue from the Suno profile feed
 tools/explode-capture.mjs  captures the click explosion frame by frame
+tools/drag-capture.mjs  captures the held-drag behaviour frame by frame
 ```
 
 ## Pages
@@ -74,9 +75,12 @@ to third everywhere.
 
 Mouse movement does **not** touch the simulation. The fire is click-driven:
 a click detonates a burst of heat and upward velocity at that point, which
-rises and dissipates over the next second or so. Tracking the pointer made
-the flames appear to follow the mouse and glitched when the pointer left the
-window mid-drag.
+rises and dissipates over the next second or so. **Holding** the button and
+dragging keeps feeding heat at the pointer and pushes the flow along with it,
+so the flame follows your cursor and leaves a trail. Releasing stops it dead.
+
+Tracking the pointer on hover made the flames appear to follow the mouse and
+glitched when the pointer left the window mid-drag, so hover does nothing.
 
 If WebGL2 or `EXT_color_buffer_float` is unavailable, the script falls back to a CPU
 cell-based fire simulation that still responds to clicks.
